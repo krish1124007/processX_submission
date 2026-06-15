@@ -7,11 +7,14 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "seed": "tsx src/scripts/seed.ts"
+    "seed": "tsx src/scripts/seed.ts",
+    "audit": "tsx src/scripts/audit-samples.ts",
+    "fill-output": "tsx src/scripts/fill-output.ts"
   },
   "dependencies": {
     "@ai-sdk/groq": "^3.0.41",
     "ai": "^6.0.205",
+    "exceljs": "^4.4.0",
     "express": "^5.2.1",
     "groq-sdk": "^1.2.1",
     "lucide-react": "^1.18.0",

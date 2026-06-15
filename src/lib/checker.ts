@@ -1,13 +1,4 @@
-/**
- * Falls Policy Checker — AI core.
- *
- * Yahan AI ka role narrow hai: ek progress note ko us din ke policy checklist ke
- * against classify karna. Decision logic (flag banana) deterministic code mein hai.
- *
- * Flow:
- *   getChecklistForDay(day)  ->  buildPrompt()  ->  Groq generateObject (Zod schema)
- *       ->  verdicts[]  ->  aggregate  ->  flags[]
- */
+
 
 import "dotenv/config";
 import Groq from "groq-sdk";
@@ -23,11 +14,10 @@ const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
 
-/** Groq model — fast aur instruction-following ke liye accha. */
+
 const MODEL = "llama-3.3-70b-versatile";
 
-/* ----------------------------- Output schema ----------------------------- */
-/** LLM ko ye exact shape return karna FORCE hai. */
+
 const VerdictSchema = z.object({
   verdicts: z.array(
     z.object({
@@ -69,11 +59,11 @@ export interface CheckResult {
   title: string;
   compliant: boolean;
   flags: Flag[];
-  /** Saare requirements ke verdicts (audit/explainability ke liye) */
+
   verdicts: { id: string; label: string; status: RequirementStatus }[];
 }
 
-/* ------------------------------ Prompt build ------------------------------ */
+
 function renderRequirements(reqs: PolicyRequirement[]): string {
   return reqs
     .map((r, i) => {
@@ -88,7 +78,7 @@ function renderRequirements(reqs: PolicyRequirement[]): string {
       }
       if (r.conditional) {
         parts.push(
-          `   - CONDITIONAL: This only applies when its precondition is actually present. If it does not apply (e.g. the resident is stable/resolved, there is no outstanding action, or no care-plan change was needed), mark this PRESENT — do NOT flag it.`,
+          `   - CONDITIONAL: Only flag this if the note clearly shows the precondition occurred (an unresolved action, a care-plan change that was needed, or the resident being unstable). If the note simply does not mention this topic, or the resident appears stable/resolved, treat it as NOT APPLICABLE and mark it PRESENT — do NOT flag it.`,
         );
       }
       return parts.join("\n");
@@ -132,7 +122,7 @@ ${note.trim()}
 Classify each requirement above as PRESENT, MISSING, or VAGUE and return a valid JSON object.`;
 }
 
-/* -------------------------------- Runner --------------------------------- */
+
 export async function runChecker(
   day: number,
   note: string,
@@ -182,8 +172,8 @@ export async function runChecker(
   }
 
   // Fallback to empty array if parsing fails or schema doesn't match perfectly
-  const object = VerdictSchema.safeParse(parsedJson).success 
-    ? (parsedJson as { verdicts: Verdict[] }) 
+  const object = VerdictSchema.safeParse(parsedJson).success
+    ? (parsedJson as { verdicts: Verdict[] })
     : { verdicts: [] };
 
   // AI ke verdicts ko id se index karo, phir checklist ke against reconcile.

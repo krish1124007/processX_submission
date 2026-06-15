@@ -1,0 +1,67 @@
+FALLS DOCUMENTATION CHECKER — DECISION LOG
+==========================================
+
+
+1) HOW I STRUCTURED THE POLICY AS INPUT TO THE AI
+-------------------------------------------------
+- I did NOT dump the whole policy document into the prompt. That produces vague,
+  non-deterministic flags that cannot be traced back to a rule.
+- Instead I converted Section 5 of the Falls Management Policy into a per-day,
+  ATOMIC CHECKLIST (src/lib/policy-checklist.ts). Each requirement is one object:
+      { id, label, requireAll?, vagueHint?, conditional? }
+- id          -> every flag traces to exactly one requirement, so it is explainable.
+- requireAll  -> multi-part items (e.g. vitals = BP/HR/RR/Temp/SpO2) so the AI names
+                 the specific missing sub-part.
+- vagueHint   -> encodes the policy's own wording ("use the 0-10 scale", "state clearly,
+                 not just 'moving around'") so the AI can tell VAGUE from PRESENT.
+- conditional -> for requirements that only apply when a precondition exists (see #2).
+- The AI gets ONLY that day's checklist plus the note, and returns a
+  PRESENT / MISSING / VAGUE verdict per id (forced into a Zod-validated JSON shape).
+  The AI judges; deterministic code decides what becomes a flag. No LangChain /
+  LangGraph needed — the policy is small and fixed.
+
+
+2) ONE THING THE AI SUGGESTED THAT I CHANGED / REJECTED
+-------------------------------------------------------
+- When I first listed every Section 5 requirement as an equal, always-checked item,
+  the AI flagged every requirement the note did not explicitly mention — including the
+  Day 3 "escalate to care manager if the resident has not stabilised" requirement.
+- That broke the JOHN DOE sanity check: John Doe is stable and his Day 3 note is a clean
+  closure, yet the checker raised a false "escalation missing" flag (the task requires
+  ZERO flags for John Doe).
+- I rejected the "treat all requirements identically" approach and introduced a
+  `conditional` flag for requirements whose precondition may not apply (escalation,
+  "any changes to the care plan", "resolution of any outstanding actions"). The prompt
+  now marks these PRESENT when the precondition clearly does not apply.
+- I also split "pain scale" into its own requirement and relaxed "risk factors" so the
+  output matches the sample's granularity.
+- Result after these changes: John Doe = 0/0/0 flags, Peter Parker = 7/5/4 flags,
+  matching the expected sample output. (Verify with: npm run audit)
+- (Related: the structured-output call first used a JSON-schema mode Groq didn't handle
+  well; I switched to groq-sdk with response_format json_object + Zod validation.)
+
+
+3) ONE DECISION THE AI COULD NOT MAKE FOR ME
+--------------------------------------------
+- Whether to reason across days. The checker evaluates each day's note in ISOLATION,
+  so on Day 3 it cannot know whether an "outstanding action" was actually opened on
+  Day 1/2 — it only sees Day 3.
+- Example: for Robert Singh the X-ray was ordered on Day 1 and resolved on Day 2, but
+  his Day 3 note does not restate it, so the checker can flag "outstanding actions not
+  resolved." That is arguably a false positive.
+- The AI cannot decide this for me — it is an architecture choice about how much context
+  to feed. I resolved it deliberately: keep each day independent (simpler, predictable,
+  and a missing closure statement IS a real documentation gap), mark such items
+  conditional to reduce noise, and treat a Day-3-in-isolation flag as a prompt to
+  confirm rather than a hard error. Feeding prior days as context is noted as future work.
+
+
+COULD THE CHECKER PRODUCE A WRONG FLAG? HOW I CATCH IT
+------------------------------------------------------
+- Yes — being LLM-based it can occasionally under-flag (e.g. it let Alice Day 1's missing
+  NOK notification time pass) or over-flag a conditional item.
+- Two guards:
+  1. Evidence quotes — every flag includes the exact words it is based on, so a reviewer
+     can instantly see whether the flag is justified.
+  2. The John Doe baseline — a fully-compliant note that must always produce zero flags;
+     if it ever flags, the checklist/prompt has drifted. Run `npm run audit` to check.

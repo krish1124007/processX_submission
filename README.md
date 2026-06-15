@@ -95,4 +95,4 @@ npx tsx src/scripts/fill-output.ts "C:/path/to/Your_Output_File.xlsx"
 Next.js (App Router) · TypeScript · MongoDB/Mongoose · Groq (`llama-3.3-70b-versatile`) ·
 Vercel-style structured output via `groq-sdk` + `zod` · Tailwind · `sonner` toasts · `xlsx`.
 
-See [`DECISIONS.md`](./DECISIONS.md) for the design decision log.
+See [`DECISIONS.txt`](./DECISIONS.txt) for the design decision log.

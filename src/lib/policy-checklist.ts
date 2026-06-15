@@ -1,16 +1,4 @@
-/**
- * Falls Management Policy — POL-FAL-001, Version 1.0
- * Section 5 (Documentation Requirements) ko atomic, per-day checklist mein
- * convert kiya gaya hai. YAHI policy ka structured form hai jo AI ko diya jaata hai.
- *
- * Design rationale (decision log ke liye):
- *  - Poora policy text prompt mein dump karne ke bajaye, har requirement ko ek
- *    atomic item bana diya. Isse har flag ek `id` se trace hota hai => explainable.
- *  - `requireAll`: agar item ke andar sub-parts hain (e.g. vitals ke 5 readings),
- *    to AI ko exactly ye batana hai ki kaun sa sub-part missing hai.
- *  - `vagueHint`: policy "0-10 scale", "state clearly not just moving around" jaise
- *    rules deta hai — ye hint AI ko VAGUE vs PRESENT distinguish karne mein madad karta hai.
- */
+
 
 export type RequirementStatus = "PRESENT" | "MISSING" | "VAGUE";
 
@@ -64,17 +52,19 @@ const DAY_1: DayChecklist = {
       vagueHint: "Clearly state witnessed ya unwitnessed.",
     },
     {
+      // Pain ko alag requirement rakha — reference output ise "Pain scale" ke roop
+      // mein alag flag karta hai, isliye granularity match karti hai.
+      id: "pain_scale",
+      label: "Pain level documented using the 0–10 scale",
+      vagueHint:
+        "Numeric 0–10 rating zaroori hai. 'in pain' / 'right hip pain' bina number = flag (Missing/Vague).",
+    },
+    {
       id: "resident_condition",
       label:
-        "Resident condition at discovery: pain level (0–10), consciousness, visible injury, ability to move all limbs",
-      requireAll: [
-        "pain level on 0–10 scale",
-        "consciousness / level of alertness",
-        "visible injury (or explicitly none)",
-        "ability to move all limbs",
-      ],
+        "Resident condition at discovery: consciousness, visible injury, ability to move limbs",
       vagueHint:
-        "'in pain' without a 0–10 number = VAGUE. 'seemed fine' = VAGUE. Har sub-part explicit hona chahiye.",
+        "Consciousness, visible injury (ya explicitly 'none'), aur limb movement broadly address hone chahiye. Agar condition generally describe ki hai (e.g. 'alert and orientated, no visible injury') to PRESENT — har sub-part ko alag se nitpick mat karo.",
     },
     {
       id: "vital_signs",
@@ -109,14 +99,9 @@ const DAY_1: DayChecklist = {
     },
     {
       id: "risk_factors",
-      label:
-        "Risk factors identified (falls history, medications, mobility aid status)",
-      requireAll: [
-        "falls history",
-        "medications",
-        "mobility aid status",
-      ],
-      vagueHint: "Teeno risk factors mention hone chahiye.",
+      label: "Risk factors identified (e.g. falls history, medications)",
+      vagueHint:
+        "Agar falls history aur/ya current medications mention hain to PRESENT maano. Mobility aid status optional hai — uske bina flag mat karo. Sirf tab flag karo jab risk factors bilkul address hi nahi kiye gaye.",
     },
     {
       id: "care_plan_reviewed",
@@ -131,11 +116,7 @@ const DAY_1: DayChecklist = {
   ],
 };
 
-/* ------------------------------------------------------------------ *
- * DAY 2 — Continuation Note (24h post-fall)  [Policy 5, Day 2: 6 items]
- * Note: continuation entry — incident description / notified-identity /
- * original risk factors REPEAT karne ki zarurat NAHI. Sirf updates check karo.
- * ------------------------------------------------------------------ */
+
 const DAY_2: DayChecklist = {
   day: 2,
   title: "Day 2 — Continuation Note (24 hours post-fall)",
@@ -184,9 +165,7 @@ const DAY_2: DayChecklist = {
   ],
 };
 
-/* ------------------------------------------------------------------ *
- * DAY 3 — Closure or Escalation Note (48h post-fall)  [Policy 5, Day 3: 6 items]
- * ------------------------------------------------------------------ */
+
 const DAY_3: DayChecklist = {
   day: 3,
   title: "Day 3 — Closure or Escalation Note (48 hours post-fall)",
