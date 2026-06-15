@@ -1,98 +1,66 @@
-# Falls Documentation Checker — ProcessX Take-Home
+# ProcessX - AI Policy Checker
 
-An AI-assisted checker that reads a nurse's **daily progress note** after a resident fall and
-flags whether it meets the documentation requirements in the **Falls Management Policy
-(POL-FAL-001)**. Each day (Day 1 → 3) is submitted separately; the checker reports, in plain
-English, exactly what is **missing** or **vague** so a nurse knows what to fix.
+This is a Next.js application designed to automate the auditing of nurse progress notes against the facility's Falls Management Policy using AI.
 
-The policy is the source of truth. The checker's flags are specific and trace back to a
-single policy requirement.
+## Prerequisites
 
----
+Before running the project, ensure you have the following installed on your system:
+- **Node.js** (v18 or higher recommended)
+- **MongoDB** (Running locally or a MongoDB Atlas URI)
 
-## How it works (the AI flow)
+## Setup Instructions
 
-```
-Progress note + day number
-   → getChecklistForDay(day)        # policy ko per-day atomic checklist banaya (code)
-   → Groq LLM (single call, temp 0) # classify each requirement: PRESENT / MISSING / VAGUE
-        · forced JSON via response_format + Zod validation
-   → reconcile verdicts by id       # deterministic (code)
-   → flags[]  (only MISSING / VAGUE)
-```
+Follow these steps to get the project running locally:
 
-The AI does **one narrow job**: judge each requirement against the note. All decision logic
-(which day, what counts as a flag, the compliance gate) is deterministic code — so every flag
-is explainable. No LangChain / LangGraph / vector DB — the policy is small and fixed.
-
-**Key files**
-| File | Role |
-|---|---|
-| `src/lib/policy-checklist.ts` | Policy Section 5 → structured Day 1/2/3 checklist (the policy as AI input) |
-| `src/lib/checker.ts` | The AI core — Groq call, prompts, Zod schema, flag aggregation |
-| `app/actions.ts` | Server actions — runs the checker, compliance gate, persistence |
-| `app/nurse/page.tsx` | Nurse portal — log notes per fall case, view/edit, live AI feedback |
-| `app/admin/page.tsx` | Admin — stats, policy management, report history |
-| `src/scripts/fill-output.ts` | Fills `Your_Output_File.xlsx` by running the checker on each resident |
-| `src/scripts/audit-samples.ts` | Runs the checker on the official John Doe / Peter Parker samples |
-
----
-
-## Setup
-
-### Prerequisites
-- Node.js 18+
-- A running **MongoDB** (local: `mongodb://localhost:27017`)
-- A **Groq API key** (free: https://console.groq.com)
-
-### 1. Install
+### 1. Install Dependencies
+Open your terminal in the project root directory and run:
 ```bash
 npm install
 ```
 
-### 2. Environment
-Create `.env` in the project root:
-```bash
+### 2. Environment Configuration
+Create a `.env` file in the root directory of your project (same level as `package.json`). You need to add two essential environment variables:
+
+```env
+# Your MongoDB Connection String (Local or Atlas)
 MONGO_URL=mongodb://localhost:27017/processx_db
+
+# Your Groq API Key for the AI model
 GROQ_API_KEY=your_groq_api_key_here
 ```
 
-### 3. Seed (creates a nurse + admin user)
+### 3. Seed the Database
+Before running the app, you must populate the database with the initial dummy data, including the Admin user, Nurse user, Patients, and the Policy itself.
+
+Run the following command:
 ```bash
 npm run seed
 ```
+*Note: This command will wipe existing data in the database and insert fresh test data. You will see a "Database seeded successfully!" message upon completion.*
 
-### 4. Run
+### 4. Run the Development Server
+Once the database is seeded, start the Next.js development server:
 ```bash
 npm run dev
 ```
-Open http://localhost:3000 → go to the **Nurse** portal, add a patient, and start a fall report.
 
----
+The application will start running on [http://localhost:3000](http://localhost:3000) (or `http://localhost:3001` if port 3000 is busy).
 
-## Using the checker
+## Test Credentials
 
-### In the app
-Nurse portal → pick/create a patient → **New Fall Report** → log Day 1, then Day 2, then Day 3.
-- A note is **only saved when it is fully compliant**. If anything is missing/vague, the note is
-  rejected and the flags are shown so the nurse can fix and resubmit.
-- A completed case (3 days) is archived; any saved note can be edited (the AI re-checks on edit).
+Use the following credentials to log in to the application and test the portals:
 
-### Scripts
-```bash
-# Sanity-check against the provided samples (expect John Doe = 0 flags, Peter Parker = flagged)
-npx tsx src/scripts/audit-samples.ts
+**Admin Portal:**
+- **Username:** `admin`
+- **Password:** `admin123`
 
-# Fill the deliverable spreadsheet for all four residents
-npx tsx src/scripts/fill-output.ts
-# or with an explicit path:
-npx tsx src/scripts/fill-output.ts "C:/path/to/Your_Output_File.xlsx"
-```
+**Nurse Portal:**
+- **Username:** `nurse`
+- **Password:** `nurse123`
 
----
-
-## Tech
-Next.js (App Router) · TypeScript · MongoDB/Mongoose · Groq (`llama-3.3-70b-versatile`) ·
-Vercel-style structured output via `groq-sdk` + `zod` · Tailwind · `sonner` toasts · `xlsx`.
-
-See [`DECISIONS.txt`](./DECISIONS.txt) for the design decision log.
+## How it Works
+1. Log in as a **Nurse** to submit a Progress Note.
+2. Select a patient, a day (Day 1, 2, or 3), and type the note.
+3. Upon submission, the AI (`checker.ts`) will evaluate the note strictly against the policy rules defined in `policy-checklist.ts`.
+4. Any missing or vague information will be instantly flagged, allowing the nurse to correct it before final submission.
+5. Log in as an **Admin** to view a dashboard of all daily reports, compliance stats, and policy management.
